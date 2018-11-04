@@ -15,3 +15,5 @@ int get_lines();
 
 // Loescht Bildschirm
 void clearscr();
+
+int get_columns();

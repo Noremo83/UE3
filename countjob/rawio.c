@@ -17,6 +17,7 @@ static char platz_fuer_termstrings[1024];
 static char *p=platz_fuer_termstrings;
 static char *Cl, *Cpos, *Scroll, *SetScrollRegion; 
 static int nrlines;
+static int nrcolumns;
 
 static int isinit;
 static struct termios told;
@@ -59,6 +60,8 @@ static void init()
 		fprintf(stderr, "failed to get scroll seq for terminaltype %s\n", getenv("TERM")), exit(1);
 	if (( nrlines = tgetnum("li")) == -1)
 		fprintf(stderr, "failed to get line-size for terminaltype %s\n", getenv("TERM")), exit(1);
+	if (( nrcolumns = tgetnum("co")) == -1)
+		fprintf(stderr, "failed to get column-size for terminaltype %s\n", getenv("TERM")), exit(1);
 
 	atexit(exithandler);
 
@@ -128,6 +131,12 @@ void clearscr()
 	if (!isinit)
 		init();
 	tputs(Cl,0,writebyte);
+}
+
+int get_columns(){
+	if(!isinit)
+		init();
+	return nrcolumns;
 }
 
 

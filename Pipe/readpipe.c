@@ -1,5 +1,3 @@
-//IS16134  Andreas Kolan
-
 #include<string.h>
 #include<stdio.h>
 #include<stdlib.h>
@@ -7,9 +5,8 @@
 #include<sys/wait.h> 
 #include<unistd.h> 
 #include<signal.h>
-#include<time.h>
-#include<pthread.h>
-#include"rawio.h"
+#include<fcntl.h> 
+#include<sys/stat.h>
 
 #define MAX_INPUT 255
 #define MAX_PATH 255
@@ -27,80 +24,33 @@ void addtopath_14(const char *path);
 char *checkBackground(char *str);
 void printhelp();
 
-void sigchld_handler(int signo);
 void sigint_handler(int signo);
-void print_proc();
 
 char **cmdv;
+char **envarr;
 int runBackground = 0;
-int proc_count;
-int writetoscreen = 1;
-
-//
-//Ich habe versuchtalle printf durch ihre writestr_raw zu ersetzen führt zu komischen verhalten
-//Cursor springt wahllos umher, mal sitzt er in der ersten mal in der letzten Zeile.
-//
-//Es wurde einige printf in Funktionen auskommentiert
-//
 
 void sigint_handler(int signo) {
-	writestr_raw("\n",0,get_lines());
-	//printf("\n");
+	printf("\n");
     exit(1);
-}
-
-//SIGCHLD Handler wartet
-void sigchld_handler(int signo) {
-	pid_t pid;
-	pid = wait(NULL);
-	//printf("\nPid %d exited.\n", pid);
-	--proc_count;
-}
-
-
-//Funktion zum schreiben der aktiven Threads
-void print_proc(){
-	for(;;){
-		//Kontrolle ob vorder oder Hintergrundprozess und je nachdem Ausgabe aktivieren oder nicht
-		if(writetoscreen == 0){
-			//Zeit holen
-			time_t rawtime = time(0);		
-			struct tm *local = localtime(&rawtime);		
-			char retval[100];
-			
-			//speichern des Strings für die Ausgabe in der Variable retval und anschließend ausgeben 
-			snprintf(retval,sizeof(retval),"\n161314--%i--%02i:%02i:%02i\n",proc_count, local->tm_hour, local->tm_min, local->tm_sec);
-			writestr_raw(retval,(get_columns()-strlen(retval)),0);
-		}
-		sleep(1);
-	}
-}
-//Startet die shell Funktion
-int main(){
-	//Proccess Counter initialisieren und Thread starten
-	proc_count = 0;
-	pthread_t threadID;
-	pthread_create(&threadID,NULL,(void *)print_proc,NULL);
-	
-	//Setzen von waitscreen auf 0, da davon ausgegangen werden kann das auf dem screen geschriben werden kann beim starten
-	writetoscreen = 0;
-	
-	clearscr();
-	shell();	
-	return 0;
 }
 
 void printhelp(){
 	//Liefert eine Liste der verfügbaren Kommandos zurück
-	//printf("\nBuild in Funktionen:\n\n    14-ende - Beendet die Shell\n    14-wo - liefert das Working Directory\n    14-info - liefert Systeminformationen\n");
-	//printf("    getpath - liefert die PATH Variable\n    14-setpath Pfad - überschreibt die PATH Variable mit dem gelieferten Pfad\n    14-addtopath Pfad - fügt den angegeben Pfad der PATH Variable hinzu\n");
-	writestr_raw("\nBuild in Funktionen:\n\n    14-ende - Beendet die Shell\n    14-wo - liefert das Working Directory\n    14-info - liefert Systeminformationen\n",0,get_lines());
-	writestr_raw("    getpath - liefert die PATH Variable\n    14-setpath Pfad - überschreibt die PATH Variable mit dem gelieferten Pfad\n    14-addtopath Pfad - fügt den angegeben Pfad der PATH Variable hinzu\n",0,get_lines());
+	printf("\nBuild in Funktionen:\n\n    end_14 - Beendet die Shell\n    wo_14 - liefert das Working Directory\n    info_14 - liefert Systeminformationen\n");
+	printf("    getpath - liefert die PATH Variable\n    setpath_14 Pfad - überschreibt die PATH Variable mit dem gelieferten Pfad\n    addtopath_14 Pfad - fügt den angegeben Pfad der PATH Variable hinzu\n");
+}
+
+
+//Startet die shell Funktion
+int main(){
+	shell();
+	return 0;
 }
 
 //Beendet das programm
 void end_14(){
-	//printf("Hope to see you again!\n\n");
+	printf("Hope to see you again!\n\n");
 	exit(1);
 }
 
@@ -133,28 +83,28 @@ void cd(){
 	   }
 	}
 	else
-		perror("Enter a valid path to switch!\n");
+		printf("Enter a valid path to switch!\n");
 }
 
 void info_14(){
 	//Liefert Systeminformationen
 	printf("\nSysteminfo:\n");
-	printf("    UID: %d\n",getuid());
-	printf("    EUID: %d\n",geteuid());
-	printf("    PID: %d\n",getpid());
-	printf("    CWD: %s\n",wo_14());
-	printf("    PATH: %s\n\n",getenv("PATH"));
+	printf("UID: %d\n",getuid());
+	printf("EUID: %d\n",geteuid());
+	printf("PID: %d\n",getpid());
+	printf("%s\n",wo_14());
+	printf("PATH: %s\n",getenv("PATH"));
 }
 
 void setpath_14(const char *path){
 	//Einfach überschreiben der bestehenden PATH Variable mit setenv und ausgebe
 	setenv("PATH",path,1);  
-	//printf("PATH=%s\n",getenv("PATH"));
+	printf("PATH=%s\n",getenv("PATH"));
 }
 
 void getpath(){
 	//Liefert die aktuelle PATH Variable zurück
-	//printf("PATH: %s\n",getenv("PATH"));
+	printf("PATH: %s\n",getenv("PATH"));
 }
 
 void addtopath_14(const char *addpath){
@@ -163,7 +113,7 @@ void addtopath_14(const char *addpath){
 	char *newpath = strcat(path,":");
 	//Speichern und ausgeben der neuen PATH Variable
 	setenv("PATH",strcat(newpath,addpath),1);   
-	//printf("PATH %s\n",getenv("PATH"));	
+	printf("PATH %s\n",getenv("PATH"));	
 }
 	
 char **split(char *str,char *delim){
@@ -204,35 +154,72 @@ char *checkBackground(char *str){
 
 void shell(){
 	char eingabe[MAX_INPUT];
+	char env[MAX_INPUT];
+	
 	int stat_loc;
-	//printf("\nStart my Shell\n\n");	
 	
-	writestr_raw("\nStart my Shell\n\n",0,get_lines());
-	
-	//Signale ignorieren
-	signal(SIGINT, SIG_IGN);
-	signal(SIGQUIT, SIG_IGN);
-	
-	//CHILD Handler aktivieren
-	signal(SIGCHLD, sigchld_handler);
-	
-	
-	for(;;){		
+	printf("\nStart my Shell\n\n");	
+	signal(SIGINT, SIG_DFL);
+	for(;;){
 		runBackground = 0;
-		char pwd[255];
 		//printf("14-%s:>",wo_14());		
-		snprintf(pwd,sizeof(pwd),"14-%s:>\n",wo_14());
-		writestr_raw(pwd,0,get_lines());
-				
-		//Einlesen des Userinputs mit Funct aus rawio
-		gets_raw(eingabe,MAX_INPUT,0,get_lines());
+		
+		//Variablen für die Pipe
+		int fd,fd2; 
+		char * mypipe = "/var/spool/14-cmdpipe";
+		char * envpipe = "/var/spool/envpipe";
+		
+		
+		//Öffnen und lesen der Environment Pipe
+		fd = open(envpipe, O_RDONLY); 		
+		//Sollte die pipe nicht da sein anlegen
+		if(fd < 0)
+			mkfifo(envpipe,0666);		
+		read(fd, env, MAX_INPUT);		
+		close(fd);
+		
+		
+		//Öffnen und lesen der Command Pipe
+		fd2 = open(mypipe,O_RDONLY);		
+		//Sollte die pipe nicht da sein anlegen
+		if(fd < 0)
+			mkfifo(mypipe,0666);		
+		read(fd2,eingabe,MAX_INPUT);
+		close(fd2);		
+		
 		
 		//Abfangen falls ein leerer Input erfolgt
 		if((eingabe[0] == '\n') || (eingabe[0] == '\t')){
 			continue;
 		}
+		
+		
 		//Argumente zerlegen
 		cmdv = split(eingabe," \t\n");
+		//Environment zerlegen und befüllen
+		envarr = split(env," \t\n");		
+		
+		//Anpassen der mitgelieferten UMASK
+		mode_t newUmask = atoi(envarr[2]);
+		umask(newUmask);
+		
+		//Speicher HOME Variable
+		char *newHome = malloc(sizeof(envarr[3]));
+		strcpy(newHome,envarr[3]);
+		//Speichern der Current Working Directories
+		char *newCWD = malloc(sizeof(envarr[4]));
+		strcpy(newCWD,envarr[4]);
+		
+		printf("Environment VAR: %s %s %i %s %s\n",envarr[0],envarr[1],newUmask,newHome,newCWD);
+		
+		//setzen der User und Group ID des ausführenden Users
+		setgid(atoi(envarr[1]));
+		setuid(atoi(envarr[0]));		
+		//printf("\nUID: %d GID: %d\n",getuid(),getgid());
+		
+		//Wechseln ins CWD dir des Users
+		chdir(newCWD);
+		
 		
 		//Kontrolle ob Hintergrund prozess und entfernen des &
 		cmdv[0] = checkBackground(cmdv[0]);		
@@ -244,8 +231,7 @@ void shell(){
 			end_14();
 		}
 		else if(strcmp(cmdv[0],"14-wo") == 0){
-			//printf("CWD: %s\n",wo_14());
-			writestr_raw(wo_14(),strlen(pwd)+1,get_lines());
+			printf("CWD: %s\n",wo_14());
 			free(cmdv);
 			runBackground = 0;
 			continue;
@@ -286,9 +272,9 @@ void shell(){
 			runBackground = 0;
 			continue;
 		}
+		
 		//Start Childprocess
 		pid_t child;
-		
 		switch(child=fork()){
 			case -1: perror("fork");
 				break;
@@ -296,17 +282,13 @@ void shell(){
 				//Kontrolle ob Hintergund (1 = Hintergrund) oder nicht
 				//Signale für den ChildProcess richtigstellen
 				if(runBackground == 1){	
-					
-					//Prozess counter erhöhen wenn ein Prozess im Hintergrund gestartet wird
-					++proc_count;
-					//writetoscreen = 0;
-					
-					//Wenn Hintergrund dann Ignore Signale					
+					//Wenn Hintergrund dann Ignore Signale
 					signal(SIGINT, SIG_IGN);
 					signal(SIGQUIT, SIG_IGN);
 					
-					//SIGCHLD handler aktivieren
-					signal(SIGCHLD,sigchld_handler);
+					fd2 = open(mypipe,O_WRONLY);
+					close(STDOUT_FILENO);
+					dup2(fd2,1);					
 					
 					//Ausführen des übergebenen Programms
 					if(execvp(cmdv[0],cmdv) < 0){
@@ -315,12 +297,13 @@ void shell(){
 					}					
 				}
 				else{
-					//Wenn kein Hintergrund dann Standardverhalten Signale					
+					//Wenn kein Hintergrund dann Standardverhalten Signale
 					signal(SIGINT, SIG_DFL);
 					signal(SIGQUIT, SIG_DFL);
 					
-					//Signak CHLD auf IGN stellen sonst zählt er falsch
-					signal(SIGCHLD,SIG_IGN);
+					fd2 = open(mypipe,O_WRONLY);					
+					close(STDOUT_FILENO);
+					dup2(fd2,1);	
 					
 					//Ausführen des übergebenen Programms
 					if(execvp(cmdv[0],cmdv) < 0){
@@ -331,32 +314,28 @@ void shell(){
 				
 			default: //Bin ich selber und ggfs warten auf beendigung des childprocess
 				if(runBackground == 1){	
-					++proc_count;
-					//Wenn Hintergrund dann Ignore Signale und lauf weiter zur neuerlichen befehleingabe					
+					//Wenn Hintergrund dann Ignore Signale und lauf weiter zur neuerlichen befehleingabe
+					signal(SIGCHLD,SIG_IGN);
 					signal(SIGINT, SIG_IGN);
 					signal(SIGQUIT, sigint_handler);
 				}
-				else{	
+				else{
 					//Wenn kein Hintergrund dann Standardverhalten Signale
-					signal(SIGINT, SIG_IGN);
+					signal(SIGCHLD,SIG_DFL);
+					signal(SIGINT, SIG_DFL);
 					signal(SIGQUIT, sigint_handler);
 					
-					//Signak CHLD auf IGN stellen sonst zählt er falsch
-					signal(SIGCHLD,SIG_IGN);
-					
 					//warten das Childprozess fertig wird
-					
-					//Setzen der von waitscreen da Vordergrundprozess und nicht geschrieben werden soll
-					writetoscreen = 1;
 					waitpid(child, &stat_loc, WUNTRACED);
-					writetoscreen = 0;
 				}
 		}
 		
+		close(fd2);		
+		
 		//Speicher freigeben und runBackground wieder auf 0 setzen
 		free(cmdv);
+		free(envarr);
 		runBackground = 0;
 	}
 	//Return 0;
 }
-
