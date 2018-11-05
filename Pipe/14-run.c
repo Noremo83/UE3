@@ -63,7 +63,7 @@ int main(int argc, char **argv)
   	write(fd, env, strlen(env)+1);
 	close(fd); 		
 	
-	//Öffnen und schreiben der Command Pipe
+	//Öffnena und schreiben der Command Pipe
 	if(mkfifo(mypipe,0666) == 0)				
 		fd2 = open(mypipe, O_WRONLY);
 	else if(errno == EEXIST)
@@ -85,4 +85,3 @@ int main(int argc, char **argv)
 	free(command);
     return 0; 
 } 
-

@@ -24,7 +24,7 @@ void setpath_14(const char *path);
 void addtopath_14(const char *path);
 char *checkBackground(char *str);
 void printhelp();
-
+void setchildenv();
 void sigint_handler(int signo);
 
 char **cmdv;
@@ -40,6 +40,28 @@ void printhelp(){
 	//Liefert eine Liste der verfügbaren Kommandos zurück
 	printf("\nBuild in Funktionen:\n\n    end_14 - Beendet die Shell\n    wo_14 - liefert das Working Directory\n    info_14 - liefert Systeminformationen\n");
 	printf("    getpath - liefert die PATH Variable\n    setpath_14 Pfad - überschreibt die PATH Variable mit dem gelieferten Pfad\n    addtopath_14 Pfad - fügt den angegeben Pfad der PATH Variable hinzu\n");
+}
+
+void setchildenv(){
+	mode_t newUmask = atoi(envarr[2]);
+	umask(newUmask);
+		
+	//Speicher HOME Variable
+	char *newHome = malloc(sizeof(envarr[3]));
+	strcpy(newHome,envarr[3]);
+	//Speichern der Current Working Directories
+	char *newCWD = malloc(sizeof(envarr[4]));
+	strcpy(newCWD,envarr[4]);
+	
+	printf("Environment VAR: %s %s %i %s %s\n",envarr[0],envarr[1],newUmask,newHome,newCWD);
+	
+	//setzen der User und Group ID des ausführenden Users
+	setgid(atoi(envarr[1]));
+	setuid(atoi(envarr[0]));		
+	//printf("\nUID: %d GID: %d\n",getuid(),getgid());
+	
+	//Wechseln ins CWD dir des Users
+	chdir(newCWD);
 }
 
 
@@ -200,28 +222,7 @@ void shell(){
 		//Environment zerlegen und befüllen
 		envarr = split(env," \t\n");		
 		
-		//Anpassen der mitgelieferten UMASK
-		mode_t newUmask = atoi(envarr[2]);
-		umask(newUmask);
-		
-		//Speicher HOME Variable
-		char *newHome = malloc(sizeof(envarr[3]));
-		strcpy(newHome,envarr[3]);
-		//Speichern der Current Working Directories
-		char *newCWD = malloc(sizeof(envarr[4]));
-		strcpy(newCWD,envarr[4]);
-		
-		printf("Environment VAR: %s %s %i %s %s\n",envarr[0],envarr[1],newUmask,newHome,newCWD);
-		
-		//setzen der User und Group ID des ausführenden Users
-		setgid(atoi(envarr[1]));
-		setuid(atoi(envarr[0]));		
-		//printf("\nUID: %d GID: %d\n",getuid(),getgid());
-		
-		//Wechseln ins CWD dir des Users
-		chdir(newCWD);
-		
-		
+				
 		//Kontrolle ob Hintergrund prozess und entfernen des &
 		cmdv[0] = checkBackground(cmdv[0]);		
 		
@@ -287,6 +288,8 @@ void shell(){
 					signal(SIGINT, SIG_IGN);
 					signal(SIGQUIT, SIG_IGN);
 					
+					setchildenv();
+					
 					fd2 = open(mypipe,O_WRONLY);
 					close(STDOUT_FILENO);
 					dup2(fd2,1);					
@@ -301,6 +304,10 @@ void shell(){
 					//Wenn kein Hintergrund dann Standardverhalten Signale
 					signal(SIGINT, SIG_DFL);
 					signal(SIGQUIT, SIG_DFL);
+					
+					//Anpassen der mitgelieferten UMASK
+		
+					setchildenv();
 					
 					fd2 = open(mypipe,O_WRONLY);					
 					close(STDOUT_FILENO);
