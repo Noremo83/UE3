@@ -6,6 +6,7 @@
 #include<sys/stat.h> 
 #include<sys/types.h> 
 #include<unistd.h> 
+#include<errno.h>
 
 #define MAX_LEN 1024
 #define MIN_REQUIRED 1
@@ -53,20 +54,21 @@ int main(int argc, char **argv)
 	strcat(command,"\n");
  	printf("%s\n",command);    
 	
-	//Öffnen und schreiben der Command Pipe
-    fd = open(envpipe, O_WRONLY); 
-	//Sollte die pipe nicht da sein anlegen
-	if(fd < 0)
-		mkfifo(envpipe,0666);	
+	//Öffnen und schreiben der Environment Pipe
+	if(mkfifo(envpipe,0666) == 0)				
+		fd = open(envpipe, O_WRONLY);
+	else if(errno == EEXIST)
+		fd = open(envpipe, O_WRONLY);
+	
   	write(fd, env, strlen(env)+1);
 	close(fd); 		
 	
+	//Öffnen und schreiben der Command Pipe
+	if(mkfifo(mypipe,0666) == 0)				
+		fd2 = open(mypipe, O_WRONLY);
+	else if(errno == EEXIST)
+		fd2 = open(mypipe, O_WRONLY);
 	
-    //Öffnen und schreiben der Command Pipe
-	fd2 = open(mypipe, O_WRONLY); 
-	//Sollte die pipe nicht da sein anlegen
-	if(fd < 0)
-		mkfifo(mypipe,0666);	
 	write(fd2, command, strlen(command)+1);
 	close(fd2); 	
 	
@@ -83,3 +85,4 @@ int main(int argc, char **argv)
 	free(command);
     return 0; 
 } 
+

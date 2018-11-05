@@ -7,6 +7,7 @@
 #include<signal.h>
 #include<fcntl.h> 
 #include<sys/stat.h>
+#include <errno.h>
 
 #define MAX_INPUT 255
 #define MAX_PATH 255
@@ -169,30 +170,30 @@ void shell(){
 		char * mypipe = "/var/spool/14-cmdpipe";
 		char * envpipe = "/var/spool/envpipe";
 		
-		
-		//Öffnen und lesen der Environment Pipe
-		fd = open(envpipe, O_RDONLY); 		
+				
 		//Sollte die pipe nicht da sein anlegen
-		if(fd < 0)
-			mkfifo(envpipe,0666);		
+		if(mkfifo(envpipe,0666) == 0)		
+			fd = open(envpipe, O_RDONLY);
+		else if(errno == EEXIST)
+			fd = open(envpipe, O_RDONLY);
+
+		//fd = open(envpipe, O_RDONLY);
 		read(fd, env, MAX_INPUT);		
 		close(fd);
-		
-		
-		//Öffnen und lesen der Command Pipe
-		fd2 = open(mypipe,O_RDONLY);		
+
 		//Sollte die pipe nicht da sein anlegen
-		if(fd < 0)
-			mkfifo(mypipe,0666);		
+		if(mkfifo(mypipe,0666) == 0)				
+			fd2 = open(mypipe, O_RDONLY);
+		else if(errno == EEXIST)
+			fd2 = open(mypipe, O_RDONLY);
+
 		read(fd2,eingabe,MAX_INPUT);
 		close(fd2);		
-		
 		
 		//Abfangen falls ein leerer Input erfolgt
 		if((eingabe[0] == '\n') || (eingabe[0] == '\t')){
 			continue;
-		}
-		
+		}		
 		
 		//Argumente zerlegen
 		cmdv = split(eingabe," \t\n");
